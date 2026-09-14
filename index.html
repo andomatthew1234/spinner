@@ -73,7 +73,7 @@
             filter: drop-shadow(0 10px 15px rgba(0,0,0,0.3));
         }
 
-        /* The static pointer */
+        /* The static pointer with a subtle bouncy physics transform hook */
         .pointer {
             position: absolute;
             top: -15px;
@@ -86,12 +86,19 @@
             border-top: 28px solid #f43f5e;
             z-index: 10;
             filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+            transform-origin: top center;
+            transition: transform 0.1s ease-out;
+        }
+
+        .pointer.tick {
+            transform: translateX(-50%) rotate(15deg) scale(1.05);
         }
 
         svg {
             width: 100%;
             height: 100%;
-            transition: transform 4s cubic-bezier(0.15, 0.85, 0.15, 1);
+            /* Custom physics-based bezier curve for realistic deceleration */
+            transition: transform 4.8s cubic-bezier(0.12, 0.75, 0.12, 1);
         }
 
         .slice {
@@ -161,7 +168,7 @@
             background: #475569;
         }
 
-        /* Result Modal / Display */
+        /* Result Display */
         .result-display {
             min-height: 40px;
             font-size: 1.5rem;
@@ -265,7 +272,7 @@
             <div class="result-display" id="result">Ready to spin!</div>
 
             <div class="wheel-container">
-                <div class="pointer"></div>
+                <div class="pointer" id="pointer"></div>
                 <svg id="wheel" viewBox="-160 -160 320 320">
                     <!-- Dynamic Wheel Paths will be injected here -->
                 </svg>
@@ -300,8 +307,10 @@
 
         let currentRotation = 0;
         let isSpinning = false;
+        let animationFrameId = null;
 
         const wheel = document.getElementById('wheel');
+        const pointer = document.getElementById('pointer');
         const spinBtn = document.getElementById('spin-btn');
         const editBtn = document.getElementById('edit-btn');
         const resultDisplay = document.getElementById('result');
@@ -345,7 +354,6 @@
                 text.setAttribute('y', ty);
                 text.classList.add('slice-text');
 
-                // Rotate text to match slice angle for readability
                 let rot = textAngle;
                 if (textAngle > 90 && textAngle < 270) {
                     rot += 180;
@@ -370,15 +378,15 @@
             const total = options.length;
             const sliceAngle = 360 / total;
 
-            // Find the index of "Ask Again". If missing, fall back to index 0.
+            // Target "Ask Again" safely, fallback to index 0 if missing
             let targetIndex = options.findIndex(opt => opt.toLowerCase().trim() === "ask again");
             if (targetIndex === -1) targetIndex = 0;
 
-            // Random extra spins (between 5 and 10 full turns)
-            const randomExtraSpins = Math.floor(Math.random() * 5) + 5;
+            // Extra wild randomness in spins (6 to 13 full rotations)
+            const randomExtraSpins = Math.floor(Math.random() * 8) + 6;
             
-            // Add a subtle micro-jitter offset within the target slice so it never lands in the exact same spot (looks completely organic)
-            const jitterOffset = (Math.random() * 0.6 - 0.3) * sliceAngle; 
+            // Random offset within the slice to make it feel deeply organic and un-rigged
+            const jitterOffset = (Math.random() * 0.7 - 0.35) * sliceAngle; 
 
             const targetSliceCenter = (targetIndex * sliceAngle) + (sliceAngle / 2) + jitterOffset;
             
@@ -391,16 +399,54 @@
             const totalRotation = currentRotation + (randomExtraSpins * 360) + diff;
             currentRotation = totalRotation;
 
+            // Apply transition length with dynamic micro-variations in timing to enhance natural feel
+            const spinDuration = 4.5 + Math.random() * 0.8; 
+            wheel.style.transition = `transform ${spinDuration}s cubic-bezier(0.1, 0.8, 0.13, 1)`;
             wheel.style.transform = `rotate(${currentRotation}deg)`;
+
+            // Simulated tick sound/animation sync using requestAnimationFrame tracking
+            let lastSliceChecked = -1;
+            const startTime = performance.now();
+            const durationMs = spinDuration * 1000;
+
+            function monitorTick(currentTime) {
+                const elapsed = currentTime - startTime;
+                if (elapsed < durationMs) {
+                    // Calculate current displayed angle
+                    const computedMatrix = window.getComputedStyle(wheel).transform;
+                    if (computedMatrix && computedMatrix !== 'none') {
+                        const values = computedMatrix.split('(')[1].split(')')[0].split(',');
+                        const a = values[0];
+                        const b = values[1];
+                        let rad = Math.atan2(b, a);
+                        let deg = Math.round(rad * (180 / Math.PI));
+                        if (deg < 0) deg += 360;
+
+                        // Figure out which slice is under the top pointer (270 deg / -90 deg offset)
+                        const normalizedAngle = (360 - (deg - 270)) % 360;
+                        const currentSlice = Math.floor(normalizedAngle / sliceAngle);
+
+                        if (currentSlice !== lastSliceChecked && currentSlice >= 0 && currentSlice < total) {
+                            lastSliceChecked = currentSlice;
+                            // Trigger pointer tick effect
+                            pointer.classList.add('tick');
+                            setTimeout(() => pointer.classList.remove('tick'), 80);
+                        }
+                    }
+                    animationFrameId = requestAnimationFrame(monitorTick);
+                }
+            }
+            animationFrameId = requestAnimationFrame(monitorTick);
 
             setTimeout(() => {
                 isSpinning = false;
                 spinBtn.disabled = false;
+                if (animationFrameId) cancelAnimationFrame(animationFrameId);
                 
                 const winningOption = options[targetIndex];
                 resultDisplay.textContent = `🎯 ${winningOption}`;
                 resultDisplay.style.color = "#38bdf8";
-            }, 4000); // Matches CSS transition time
+            }, durationMs);
         }
 
         // Event Listeners
@@ -430,10 +476,7 @@
             currentRotation = 0;
             wheel.style.transition = 'none';
             wheel.style.transform = 'rotate(0deg)';
-            setTimeout(() => {
-                wheel.style.transition = 'transform 4s cubic-bezier(0.15, 0.85, 0.15, 1)';
-            }, 50);
-
+            
             createWheel();
             modal.classList.remove('active');
             resultDisplay.textContent = "Ready to spin!";
