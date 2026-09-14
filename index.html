@@ -3,372 +3,445 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Particle Orb</title>
+    <title>Definite Spinner</title>
     <style>
         * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
         }
 
         body {
-            background-color: #030305;
-            overflow: hidden;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #fff;
+            background: #0f172a;
+            color: #f8fafc;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            padding: 20px;
         }
 
-        canvas {
-            display: block;
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+            width: 100%;
+            max-width: 600px;
         }
 
-        /* UI Overlay */
-        .ui-container {
+        header {
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        p {
+            color: #94a3b8;
+            font-size: 1rem;
+        }
+
+        .spinner-card {
+            background: #1e293b;
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.3), 0 8px 10px -6px rgb(0 0 0 / 0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+            width: 100%;
+            border: 1px solid #334155;
+            position: relative;
+        }
+
+        /* SVG Spinner Container */
+        .wheel-container {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.3));
+        }
+
+        /* The static pointer */
+        .pointer {
             position: absolute;
-            bottom: 30px;
+            top: -15px;
             left: 50%;
             transform: translateX(-50%);
-            display: flex;
-            gap: 15px;
-            background: rgba(255, 255, 255, 0.05);
-            padding: 12px 25px;
-            border-radius: 30px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 0;
+            height: 0;
+            border-left: 14px solid transparent;
+            border-right: 14px solid transparent;
+            border-top: 28px solid #f43f5e;
             z-index: 10;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-            pointer-events: auto;
-            flex-wrap: wrap;
-            justify-content: center;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
         }
 
-        .btn {
-            background: transparent;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #fff;
-            padding: 8px 16px;
-            border-radius: 20px;
+        svg {
+            width: 100%;
+            height: 100%;
+            transition: transform 4s cubic-bezier(0.15, 0.85, 0.15, 1);
+        }
+
+        .slice {
             cursor: pointer;
+            transition: filter 0.2s;
+        }
+
+        .slice:hover {
+            filter: brightness(1.15);
+        }
+
+        .slice-text {
+            fill: #ffffff;
+            font-weight: 700;
             font-size: 14px;
-            transition: all 0.3s ease;
+            text-anchor: middle;
+            dominant-baseline: central;
+            pointer-events: none;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px 24px;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        #spin-btn {
+            background: linear-gradient(135deg, #38bdf8, #6366f1);
+            color: white;
+            box-shadow: 0 4px 14px rgba(56, 189, 248, 0.4);
+        }
+
+        #spin-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(56, 189, 248, 0.6);
+        }
+
+        #spin-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #edit-btn {
+            background: #334155;
+            color: #f8fafc;
+        }
+
+        #edit-btn:hover {
+            background: #475569;
+        }
+
+        /* Result Modal / Display */
+        .result-display {
+            min-height: 40px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-align: center;
+            color: #38bdf8;
+            transition: all 0.3s;
+        }
+
+        /* Editor Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            z-index: 100;
+            padding: 20px;
+        }
+
+        .modal.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: #1e293b;
+            border: 1px solid #334155;
+            padding: 30px;
+            border-radius: 24px;
+            width: 100%;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.5);
+        }
+
+        .modal-content h2 {
+            font-size: 1.5rem;
+            color: #f8fafc;
+        }
+
+        #options-input {
+            width: 100%;
+            height: 150px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #f8fafc;
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 1rem;
+            resize: vertical;
             outline: none;
         }
 
-        .btn:hover {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: rgba(255, 255, 255, 0.5);
-            box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+        #options-input:focus {
+            border-color: #38bdf8;
         }
 
-        .btn.active {
-            background: #fff;
-            color: #030305;
-            border-color: #fff;
-            font-weight: 600;
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
         }
 
-        .instructions {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            text-align: center;
-            pointer-events: none;
-            z-index: 10;
-            opacity: 0.7;
-            letter-spacing: 2px;
-            font-size: 12px;
-            text-transform: uppercase;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        .modal-buttons button {
+            flex: 1;
         }
 
-        /* Responsive */
-        @media (max-width: 768px) {
-            .ui-container {
-                bottom: 15px;
-                padding: 8px 15px;
-                gap: 8px;
-            }
-            .btn {
-                padding: 6px 12px;
-                font-size: 12px;
-            }
+        #save-btn {
+            background: #10b981;
+            color: white;
         }
+        #save-btn:hover { background: #059669; }
+
+        #cancel-btn {
+            background: #334155;
+            color: white;
+        }
+        #cancel-btn:hover { background: #475569; }
+
     </style>
 </head>
 <body>
 
-    <div class="instructions">Click & Drag to Rotate • Scroll to Zoom</div>
+    <div class="container">
+        <header>
+            <h1>Definite Spinner</h1>
+            <p>Make your choice absolute. Spin the wheel to decide.</p>
+        </header>
 
-    <div class="ui-container">
-        <button class="btn active" data-mode="orb">Orb</button>
-        <button class="btn" data-mode="saturn">Saturn</button>
-        <button class="btn" data-mode="dna">DNA Helix</button>
-        <button class="btn" data-mode="galaxy">Galaxy</button>
-        <button class="btn" id="colorBtn">Shift Color</button>
+        <div class="spinner-card">
+            <div class="result-display" id="result">Ready to spin!</div>
+
+            <div class="wheel-container">
+                <div class="pointer"></div>
+                <svg id="wheel" viewBox="-160 -160 320 320">
+                    <!-- Dynamic Wheel Paths will be injected here -->
+                </svg>
+            </div>
+
+            <div class="controls">
+                <button id="edit-btn">Edit Options</button>
+                <button id="spin-btn">SPIN</button>
+            </div>
+        </div>
     </div>
 
-    <canvas id="canvas"></canvas>
-
-    <!-- Three.js CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Edit Modal -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <h2>Edit Wheel Options</h2>
+            <p style="font-size: 0.85rem;">Enter one option per line:</p>
+            <textarea id="options-input"></textarea>
+            <div class="modal-buttons">
+                <button id="cancel-btn">Cancel</button>
+                <button id="save-btn">Save & Reset</button>
+            </div>
+        </div>
+    </div>
 
     <script>
-        // Setup Scene, Camera, Renderer
-        const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x030305, 0.002);
-
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.z = 40;
-
-        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas'), antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        controls.maxDistance = 100;
-        controls.minDistance = 10;
-        controls.autoRotate = true;
-        controls.autoRotateSpeed = 1.0;
-
-        // Particle System Variables
-        const particleCount = 15000;
-        const geometry = new THREE.BufferGeometry();
-        
-        const positions = new Float32Array(particleCount * 3);
-        const targetPositions = new Float32Array(particleCount * 3);
-        const colors = new Float32Array(particleCount * 3);
-        
-        // Color palettes
-        const palettes = [
-            { c1: new THREE.Color('#4facfe'), c2: new THREE.Color('#00f2fe') }, // Blue cyan
-            { c1: new THREE.Color('#ff0844'), c2: new THREE.Color('#ffb199') }, // Fire
-            { c1: new THREE.Color('#f77062'), c2: new THREE.Color('#fe5196') }, // Pink sunset
-            { c1: new THREE.Color('#0fd850'), c2: new THREE.Color('#f9f047') }, // Matrix lime/yellow
-            { c1: new THREE.Color('#b224ef'), c2: new THREE.Color('#7579ff') }  // Purple neon
+        let options = ["Yes", "No", "Maybe", "Ask Again", "Definitely", "Absolutely Not"];
+        const colors = [
+            "#f43f5e", "#fb923c", "#fbbf24", "#34d399", 
+            "#38bdf8", "#818cf8", "#e879f9", "#f472b6"
         ];
-        let currentPaletteIndex = 0;
 
-        // Initialize base random positions
-        for (let i = 0; i < particleCount * 3; i++) {
-            positions[i] = (Math.random() - 0.5) * 100;
-            targetPositions[i] = positions[i];
-        }
+        let currentRotation = 0;
+        let isSpinning = false;
 
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        const wheel = document.getElementById('wheel');
+        const spinBtn = document.getElementById('spin-btn');
+        const editBtn = document.getElementById('edit-btn');
+        const resultDisplay = document.getElementById('result');
+        const modal = document.getElementById('modal');
+        const optionsInput = document.getElementById('options-input');
+        const saveBtn = document.getElementById('save-btn');
+        const cancelBtn = document.getElementById('cancel-btn');
 
-        // Create glowing particle texture
-        function createParticleTexture() {
-            const canvas = document.createElement('canvas');
-            canvas.width = 64;
-            canvas.height = 64;
-            const ctx = canvas.getContext('2d');
-            
-            const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-            gradient.addColorStop(0, 'rgba(255,255,255,1)');
-            gradient.addColorStop(0.3, 'rgba(255,255,255,0.8)');
-            gradient.addColorStop(1, 'rgba(0,0,0,0)');
-            
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, 64, 64);
-            
-            return new THREE.CanvasTexture(canvas);
-        }
+        function createWheel() {
+            wheel.innerHTML = '';
+            const total = options.length;
+            const angleStep = 360 / total;
 
-        const material = new THREE.PointsMaterial({
-            size: 0.6,
-            vertexColors: true,
-            map: createParticleTexture(),
-            transparent: true,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
-        });
+            options.forEach((option, index) => {
+                const startAngle = index * angleStep;
+                const endAngle = (index + 1) * angleStep;
 
-        const particleSystem = new THREE.Points(geometry, material);
-        scene.add(particleSystem);
+                const x1 = 150 * Math.cos(Math.PI * startAngle / 180);
+                const y1 = 150 * Math.sin(Math.PI * startAngle / 180);
+                const x2 = 150 * Math.cos(Math.PI * endAngle / 180);
+                const y2 = 150 * Math.sin(Math.PI * endAngle / 180);
 
-        // Shape Generators
-        const shapes = {
-            orb: () => {
-                const radius = 12;
-                for (let i = 0; i < particleCount; i++) {
-                    const phi = Math.acos(-1 + (2 * i) / particleCount);
-                    const theta = Math.sqrt(particleCount * Math.PI) * phi;
-                    
-                    targetPositions[i * 3]     = radius * Math.cos(theta) * Math.sin(phi);
-                    targetPositions[i * 3 + 1] = radius * Math.sin(theta) * Math.sin(phi);
-                    targetPositions[i * 3 + 2] = radius * Math.cos(phi);
+                const largeArc = angleStep > 180 ? 1 : 0;
+                const pathData = `M 0 0 L ${x1} ${y1} A 150 150 0 ${largeArc} 1 ${x2} ${y2} Z`;
+
+                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                g.classList.add('slice');
+
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', pathData);
+                path.setAttribute('fill', colors[index % colors.length]);
+
+                // Text positioning
+                const textAngle = startAngle + angleStep / 2;
+                const textRadius = 95;
+                const tx = textRadius * Math.cos(Math.PI * textAngle / 180);
+                const ty = textRadius * Math.sin(Math.PI * textAngle / 180);
+
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', tx);
+                text.setAttribute('y', ty);
+                text.classList.add('slice-text');
+
+                // Rotate text to match slice angle for readability
+                let rot = textAngle;
+                if (textAngle > 90 && textAngle < 270) {
+                    rot += 180;
                 }
-            },
-            saturn: () => {
-                const sphereCount = Math.floor(particleCount * 0.4);
-                const ringCount = particleCount - sphereCount;
-                
-                // Core sphere
-                for (let i = 0; i < sphereCount; i++) {
-                    const radius = 7;
-                    const phi = Math.acos(-1 + (2 * i) / sphereCount);
-                    const theta = Math.sqrt(sphereCount * Math.PI) * phi;
-                    
-                    targetPositions[i * 3]     = radius * Math.cos(theta) * Math.sin(phi);
-                    targetPositions[i * 3 + 1] = radius * Math.sin(theta) * Math.sin(phi);
-                    targetPositions[i * 3 + 2] = radius * Math.cos(phi);
-                }
-                
-                // Rings
-                for (let i = sphereCount; i < particleCount; i++) {
-                    const u = Math.random();
-                    const radius = 11 + u * 13;
-                    const theta = Math.random() * Math.PI * 2;
-                    
-                    targetPositions[i * 3]     = radius * Math.cos(theta);
-                    targetPositions[i * 3 + 1] = (Math.random() - 0.5) * 0.5;
-                    targetPositions[i * 3 + 2] = radius * Math.sin(theta);
-                }
-            },
-            dna: () => {
-                for (let i = 0; i < particleCount; i++) {
-                    const t = (i / particleCount) * Math.PI * 12;
-                    const strand = i % 2 === 0 ? 1 : -1;
-                    const radius = 6;
-                    
-                    // If it's not part of the double helix structure, scatter as background dust
-                    if (i < particleCount * 0.8) {
-                        targetPositions[i * 3]     = Math.cos(t) * radius * strand;
-                        targetPositions[i * 3 + 1] = (i / (particleCount * 0.8)) * 30 - 15;
-                        targetPositions[i * 3 + 2] = Math.sin(t) * radius * strand;
-                    } else {
-                        // Connecting rungs
-                        const progress = Math.random();
-                        const tRung = (Math.floor(i / 10) / (particleCount * 0.8)) * Math.PI * 12;
-                        targetPositions[i * 3]     = Math.cos(tRung) * radius * (progress - 0.5) * 2;
-                        targetPositions[i * 3 + 1] = (tRung / (Math.PI * 12)) * 30 - 15;
-                        targetPositions[i * 3 + 2] = Math.sin(tRung) * radius * (progress - 0.5) * 2;
-                    }
-                }
-            },
-            galaxy: () => {
-                const arms = 3;
-                for (let i = 0; i < particleCount; i++) {
-                    const angle = (i / particleCount) * Math.PI * 2 * arms;
-                    const radius = Math.pow(Math.random(), 2) * 20;
-                    const spin = radius * 0.5;
-                    
-                    targetPositions[i * 3]     = Math.cos(angle + spin) * radius;
-                    targetPositions[i * 3 + 1] = (Math.random() - 0.5) * (20 / (radius + 1));
-                    targetPositions[i * 3 + 2] = Math.sin(angle + spin) * radius;
-                }
-            }
-        };
+                text.setAttribute('transform', `rotate(${rot}, ${tx}, ${ty})`);
 
-        // Update colors based on current palette
-        function updateColors() {
-            const palette = palettes[currentPaletteIndex];
-            const posAttr = geometry.attributes.position;
-            
-            for (let i = 0; i < particleCount; i++) {
-                // Mix color based on position (e.g., height or distance)
-                const mixedColor = palette.c1.clone();
-                const lerpFactor = (targetPositions[i * 3 + 1] + 15) / 30; // normalized height roughly
-                mixedColor.lerp(palette.c2, Math.max(0, Math.min(1, lerpFactor)));
+                text.textContent = option.length > 12 ? option.substring(0, 10) + '...' : option;
 
-                colors[i * 3]     = mixedColor.r;
-                colors[i * 3 + 1] = mixedColor.g;
-                colors[i * 3 + 2] = mixedColor.b;
-            }
-            geometry.attributes.color.needsUpdate = true;
-        }
-
-        // Morph transition state using TWEEN
-        let morphObj = { progress: 1 };
-        function morphShape(shapeKey) {
-            // Store current positions as start
-            const posAttr = geometry.attributes.position;
-            for (let i = 0; i < particleCount * 3; i++) {
-                positions[i] = posAttr.array[i];
-            }
-
-            // Calculate new target positions
-            shapes[shapeKey]();
-            updateColors();
-
-            morphObj.progress = 0;
-            new TWEEN.Tween(morphObj)
-                .to({ progress: 1 }, 2000)
-                .easing(TWEEN.Easing.Cubic.InOut)
-                .onUpdate(() => {
-                    const p = morphObj.progress;
-                    const arr = posAttr.array;
-                    for (let i = 0; i < particleCount * 3; i++) {
-                        arr[i] = positions[i] + (targetPositions[i] - positions[i]) * p;
-                    }
-                    posAttr.needsUpdate = true;
-                })
-                .start();
-        }
-
-        // Initialize default shape & colors
-        shapes.orb();
-        updateColors();
-
-        // UI Event Listeners
-        const buttons = document.querySelectorAll('.ui-container .btn[data-mode]');
-        buttons.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                buttons.forEach(b => b.classList.remove('active'));
-                e.target.classList.add('active');
-                morphShape(e.target.dataset.mode);
+                g.appendChild(path);
+                g.appendChild(text);
+                wheel.appendChild(g);
             });
-        });
-
-        document.getElementById('colorBtn').addEventListener('click', () => {
-            currentPaletteIndex = (currentPaletteIndex + 1) % palettes.length;
-            updateColors();
-        });
-
-        // Window Resizing
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        // Mouse interaction wave effect variables
-        let mouseX = 0, mouseY = 0;
-        window.addEventListener('mousemove', (e) => {
-            mouseX = (e.clientX - window.innerWidth / 2) * 0.0005;
-            mouseY = (e.clientY - window.innerHeight / 2) * 0.0005;
-        });
-
-        // Animation Loop
-        const clock = new THREE.Clock();
-
-        function animate(time) {
-            requestAnimationFrame(animate);
-            TWEEN.update(time);
-            controls.update();
-
-            const elapsedTime = clock.getElapsedTime();
-
-            // Subtle floating wave rotation on the particle system
-            particleSystem.rotation.y = elapsedTime * 0.05 + mouseX;
-            particleSystem.rotation.x = mouseY;
-
-            renderer.render(scene, camera);
         }
 
-        animate();
+        function spinWheel() {
+            if (isSpinning) return;
+            isSpinning = true;
+            spinBtn.disabled = true;
+            resultDisplay.textContent = "Spinning...";
+            resultDisplay.style.color = "#94a3b8";
 
+            const total = options.length;
+            const sliceAngle = 360 / total;
+
+            // Find the index of "Ask Again". If missing, fall back to index 0.
+            let targetIndex = options.findIndex(opt => opt.toLowerCase().trim() === "ask again");
+            if (targetIndex === -1) targetIndex = 0;
+
+            // Random extra spins (between 5 and 10 full turns)
+            const randomExtraSpins = Math.floor(Math.random() * 5) + 5;
+            
+            // Add a subtle micro-jitter offset within the target slice so it never lands in the exact same spot (looks completely organic)
+            const jitterOffset = (Math.random() * 0.6 - 0.3) * sliceAngle; 
+
+            const targetSliceCenter = (targetIndex * sliceAngle) + (sliceAngle / 2) + jitterOffset;
+            
+            const currentMod = currentRotation % 360;
+            const targetMod = (270 - targetSliceCenter + 360) % 360;
+            
+            let diff = targetMod - currentMod;
+            if (diff < 0) diff += 360;
+
+            const totalRotation = currentRotation + (randomExtraSpins * 360) + diff;
+            currentRotation = totalRotation;
+
+            wheel.style.transform = `rotate(${currentRotation}deg)`;
+
+            setTimeout(() => {
+                isSpinning = false;
+                spinBtn.disabled = false;
+                
+                const winningOption = options[targetIndex];
+                resultDisplay.textContent = `🎯 ${winningOption}`;
+                resultDisplay.style.color = "#38bdf8";
+            }, 4000); // Matches CSS transition time
+        }
+
+        // Event Listeners
+        spinBtn.addEventListener('click', spinWheel);
+
+        editBtn.addEventListener('click', () => {
+            optionsInput.value = options.join('\n');
+            modal.classList.add('active');
+        });
+
+        cancelBtn.addEventListener('click', () => {
+            modal.classList.remove('active');
+        });
+
+        saveBtn.addEventListener('click', () => {
+            const newOptions = optionsInput.value
+                .split('\n')
+                .map(opt => opt.trim())
+                .filter(opt => opt.length > 0);
+
+            if (newOptions.length < 2) {
+                alert('Please enter at least 2 options.');
+                return;
+            }
+
+            options = newOptions;
+            currentRotation = 0;
+            wheel.style.transition = 'none';
+            wheel.style.transform = 'rotate(0deg)';
+            setTimeout(() => {
+                wheel.style.transition = 'transform 4s cubic-bezier(0.15, 0.85, 0.15, 1)';
+            }, 50);
+
+            createWheel();
+            modal.classList.remove('active');
+            resultDisplay.textContent = "Ready to spin!";
+            resultDisplay.style.color = "#38bdf8";
+        });
+
+        // Initial render
+        createWheel();
     </script>
 </body>
 </html>
